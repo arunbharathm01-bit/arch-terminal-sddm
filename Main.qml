@@ -8,7 +8,6 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import QtQuick.Effects
 
 Rectangle {
     id: root
@@ -30,8 +29,6 @@ Rectangle {
     property int animationDuration: Math.max(1, config.intValue("AnimationDuration"))
     property real backgroundOpacity: Math.max(0.0, Math.min(1.0,
                                                               config.realValue("BackgroundOpacity")))
-    property real backgroundBlur: Math.max(0.0, Math.min(1.0,
-                                                          config.realValue("BackgroundBlur")))
     property int panelWidth: Math.min(710, Math.max(440, width * 0.52))
 
     // ----- Boot state ------------------------------------------------------
@@ -201,27 +198,16 @@ Rectangle {
 
     Component.onCompleted: beginNextBootLine()
 
-    // ----- Wallpaper, blur, and low-contrast terminal treatment ----------
-    // MultiEffect is Qt 6's supported replacement for the deprecated
-    // QtGraphicalEffects module. The source stays hidden; MultiEffect renders
-    // the blurred result at screen size without extra padding.
+    // ----- CPU-safe wallpaper and terminal treatment ----------------------
+    // Render the image directly. There are no shaders, layers, blur effects,
+    // or Qt Graphical Effects in this theme; the dark overlay supplies the
+    // needed terminal contrast using only a normal Rectangle opacity value.
     Image {
         id: wallpaper
         anchors.fill: parent
         source: root.backgroundSource
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
-        visible: false
-    }
-
-    MultiEffect {
-        anchors.fill: parent
-        source: wallpaper
-        autoPaddingEnabled: false
-        blurEnabled: root.backgroundBlur > 0
-        blurMax: 16
-        blur: root.backgroundBlur
-        brightness: -0.12
     }
 
     Rectangle {
