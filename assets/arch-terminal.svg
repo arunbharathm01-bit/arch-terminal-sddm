@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Optional mark for package managers, readmes, or future theme previews. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Arch Terminal mark">
+  <rect width="512" height="512" fill="#000000"/>
+  <path d="M256 52 88 430h74l27-63h134l27 63h74L256 52Zm0 101 47 150h-94l47-150Z" fill="#8dff72"/>
+  <path d="M222 323h68l-34-77-34 77Z" fill="#000000"/>
+  <rect x="168" y="448" width="176" height="18" rx="2" fill="#3a8d47"/>
+</svg>
