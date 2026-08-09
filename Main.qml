@@ -29,6 +29,7 @@ Rectangle {
     property int animationDuration: Math.max(1, config.intValue("AnimationDuration"))
     property real backgroundOpacity: Math.max(0.0, Math.min(1.0,
                                                               config.realValue("BackgroundOpacity")))
+<<<<<<< HEAD
     // Keep a shared grid across the header, boot console, login panel, and
     // command bar. The compact branch is used by tablets and short displays.
     property int horizontalMargin: Math.round(Math.max(22, Math.min(78, width * 0.055)))
@@ -42,6 +43,9 @@ Rectangle {
     property int logoReservedHeight: Math.ceil(Math.max(14, Math.min(21, width / 85)) * 6.6)
     property int panelWidth: Math.min(720, Math.max(0, width - horizontalMargin * 2))
     property int footerClearance: commandBar.height + verticalMargin + 18
+=======
+    property int panelWidth: Math.min(710, Math.max(440, width * 0.52))
+>>>>>>> 5e2b928c1d6fb93a111821cbf04dd4733197c1ce
 
     // ----- Boot state ------------------------------------------------------
     property bool loginReady: false
