@@ -3,14 +3,16 @@
 Arch Terminal is a production-ready terminal-style SDDM theme for Arch Linux,
 Plasma 6, Qt 6, and SDDM 0.21+. It begins with a fictional, character-by-
 character Linux boot sequence and fades into a transparent terminal login
-prompt over a subtly blurred wallpaper.
+prompt over a darkened custom wallpaper.
 
 ## Compatibility and dependencies
 
 - Arch Linux, Plasma 6, Qt 6, and SDDM 0.21 or newer.
-- Imports only standard Qt 6 modules: `QtQuick`, `QtQuick.Controls`,
-  `QtQuick.Layouts`, and `QtQuick.Effects`.
-- Uses no deprecated `QtGraphicalEffects` imports or SDDM component imports.
+- Imports only standard Qt 6 modules: `QtQuick`, `QtQuick.Controls`, and
+  `QtQuick.Layouts`.
+- Uses no shaders, `QtGraphicalEffects`, `MultiEffect`, layer rendering, or
+  GPU-only effects. Wallpaper contrast uses a plain opacity overlay; terminal
+  motion uses basic Qt Quick opacity and position animations.
 - JetBrains Mono Regular is included in `assets/fonts/` with its OFL license;
   no external package or runtime dependency is required.
 
@@ -82,8 +84,8 @@ theme is more reliable because the `sddm` user must be able to read it.
 | `BackgroundOpacity` | black overlay opacity from `0.0` to `1.0` |
 | `AnimationDuration` | boot-to-login transition duration in milliseconds |
 
-It also provides `BackgroundBlur`, `PanelColor`, `PanelBorderColor`,
-`DimTextColor`, and `BootSettleDelay`. For upgrade-safe local changes, create
+It also provides `PanelColor`, `PanelBorderColor`, `DimTextColor`, and
+`BootSettleDelay`. For upgrade-safe local changes, create
 `theme.conf.user` alongside `theme.conf`; SDDM merges it at runtime.
 
 ## SDDM integration

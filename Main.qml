@@ -8,7 +8,6 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import QtQuick.Effects
 
 Rectangle {
     id: root
@@ -30,9 +29,19 @@ Rectangle {
     property int animationDuration: Math.max(1, config.intValue("AnimationDuration"))
     property real backgroundOpacity: Math.max(0.0, Math.min(1.0,
                                                               config.realValue("BackgroundOpacity")))
-    property real backgroundBlur: Math.max(0.0, Math.min(1.0,
-                                                          config.realValue("BackgroundBlur")))
-    property int panelWidth: Math.min(710, Math.max(440, width * 0.52))
+    // Keep a shared grid across the header, boot console, login panel, and
+    // command bar. The compact branch is used by tablets and short displays.
+    property int horizontalMargin: Math.round(Math.max(22, Math.min(78, width * 0.055)))
+    property int verticalMargin: Math.round(Math.max(18, Math.min(48, height * 0.04)))
+    property bool compactLayout: width < 980 || height < 680
+    property bool compactBootLayout: width < 900 || height < 620
+    property int panelPadding: compactLayout ? 18 : 26
+    property int panelSpacing: compactLayout ? 9 : 13
+    property int loginFontSize: Math.max(13, Math.min(18, width / 97))
+    property int detailFontSize: Math.max(10, Math.min(14, width / 124))
+    property int logoReservedHeight: Math.ceil(Math.max(14, Math.min(21, width / 85)) * 6.6)
+    property int panelWidth: Math.min(720, Math.max(0, width - horizontalMargin * 2))
+    property int footerClearance: commandBar.height + verticalMargin + 18
 
     // ----- Boot state ------------------------------------------------------
     property bool loginReady: false
@@ -179,7 +188,7 @@ Rectangle {
     // from being received by an invisible input field during boot.
     Timer {
         id: loginFocusTimer
-        interval: Math.min(300, root.animationDuration / 2)
+        interval: Math.max(150, Math.min(420, root.animationDuration * 0.72))
         repeat: false
         onTriggered: {
             if (usernameField.text.length === 0)
@@ -201,27 +210,16 @@ Rectangle {
 
     Component.onCompleted: beginNextBootLine()
 
-    // ----- Wallpaper, blur, and low-contrast terminal treatment ----------
-    // MultiEffect is Qt 6's supported replacement for the deprecated
-    // QtGraphicalEffects module. The source stays hidden; MultiEffect renders
-    // the blurred result at screen size without extra padding.
+    // ----- CPU-safe wallpaper and terminal treatment ----------------------
+    // Render the image directly. There are no shaders, layers, blur effects,
+    // or Qt Graphical Effects in this theme; the dark overlay supplies the
+    // needed terminal contrast using only a normal Rectangle opacity value.
     Image {
         id: wallpaper
         anchors.fill: parent
         source: root.backgroundSource
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
-        visible: false
-    }
-
-    MultiEffect {
-        anchors.fill: parent
-        source: wallpaper
-        autoPaddingEnabled: false
-        blurEnabled: root.backgroundBlur > 0
-        blurMax: 16
-        blur: root.backgroundBlur
-        brightness: -0.12
     }
 
     Rectangle {
@@ -264,8 +262,8 @@ Rectangle {
         id: terminalHeader
         anchors.left: parent.left
         anchors.top: parent.top
-        anchors.leftMargin: Math.max(30, root.width * 0.05)
-        anchors.topMargin: Math.max(24, root.height * 0.04)
+        anchors.leftMargin: root.horizontalMargin
+        anchors.topMargin: root.verticalMargin
         text: "Arch Linux 6.x  (tty1)   " + sddm.hostname
         color: root.dimTextColor
         font.family: root.terminalFont
@@ -275,7 +273,7 @@ Rectangle {
     Rectangle {
         anchors.left: terminalHeader.left
         anchors.right: parent.right
-        anchors.rightMargin: terminalHeader.anchors.leftMargin
+        anchors.rightMargin: root.horizontalMargin
         anchors.top: terminalHeader.bottom
         anchors.topMargin: 10
         height: 1
@@ -300,10 +298,11 @@ Rectangle {
 
         Text {
             id: archLogo
-            anchors.left: parent.left
-            anchors.top: terminalHeader.bottom
-            anchors.leftMargin: Math.max(38, root.width * 0.085)
-            anchors.topMargin: Math.max(52, root.height * 0.095)
+            // Stack the logo above the boot log on narrow or short screens;
+            // keep the classic side-by-side terminal layout everywhere else.
+            x: root.horizontalMargin
+            y: terminalHeader.y + terminalHeader.height
+               + (root.compactBootLayout ? 30 : Math.max(48, root.height * 0.09))
             text: root.archLogoLines.slice(0, root.visibleLogoLines).join("\n")
             textFormat: Text.PlainText
             color: root.textColor
@@ -314,12 +313,14 @@ Rectangle {
 
         Column {
             id: bootColumn
-            anchors.left: archLogo.right
-            anchors.right: parent.right
-            anchors.top: archLogo.top
-            anchors.leftMargin: Math.max(34, root.width * 0.055)
-            anchors.rightMargin: Math.max(38, root.width * 0.08)
-            spacing: 14
+            x: root.compactBootLayout
+               ? root.horizontalMargin
+               : archLogo.x + archLogo.width + Math.max(28, root.width * 0.045)
+            y: root.compactBootLayout
+               ? archLogo.y + root.logoReservedHeight + 20
+               : archLogo.y
+            width: root.width - x - root.horizontalMargin
+            spacing: root.compactLayout ? 10 : 14
 
             Text {
                 text: "BOOTING ARCH LINUX"
@@ -339,7 +340,9 @@ Rectangle {
             ListView {
                 id: bootList
                 width: parent.width
-                height: Math.max(195, Math.min(root.height * 0.39, 340))
+                height: root.compactLayout
+                        ? Math.max(122, Math.min(root.height * 0.25, 205))
+                        : Math.max(195, Math.min(root.height * 0.39, 340))
                 model: bootLog
                 clip: true
                 spacing: 5
@@ -375,6 +378,10 @@ Rectangle {
                     property bool lit: true
                     opacity: lit ? 1 : 0
 
+                    Behavior on opacity {
+                        NumberAnimation { duration: 90; easing.type: Easing.InOutQuad }
+                    }
+
                     Timer {
                         interval: 500
                         repeat: true
@@ -400,6 +407,10 @@ Rectangle {
             property bool lit: true
             opacity: lit ? 0.96 : 0
 
+            Behavior on opacity {
+                NumberAnimation { duration: 90; easing.type: Easing.InOutQuad }
+            }
+
             Timer {
                 interval: 520
                 repeat: true
@@ -415,11 +426,13 @@ Rectangle {
     Rectangle {
         id: loginPanel
         width: root.panelWidth
-        height: loginLayout.implicitHeight + 48
+        height: loginLayout.implicitHeight + root.panelPadding * 2
         x: (root.width - width) / 2
         y: root.loginReady
-           ? Math.min(root.height - height - 62, Math.max(130, root.height * 0.46))
-           : Math.min(root.height - height - 62, Math.max(168, root.height * 0.58))
+           ? Math.max(12, Math.min(root.height - height - root.footerClearance,
+                                   Math.max(terminalHeader.bottom + 24, root.height * 0.45)))
+           : Math.max(12, Math.min(root.height - height - root.footerClearance,
+                                   Math.max(terminalHeader.bottom + 44, root.height * 0.59)))
         color: root.panelColor
         opacity: root.loginReady ? 1 : 0
         border.width: 1
@@ -443,90 +456,144 @@ Rectangle {
         ColumnLayout {
             id: loginLayout
             anchors.fill: parent
-            anchors.margins: 24
-            spacing: 12
+            anchors.margins: root.panelPadding
+            spacing: root.panelSpacing
 
             Text {
                 Layout.fillWidth: true
-                text: "Arch Linux 6.x\nKernel ready.\n\narchlinux login:"
+                text: "Arch Linux 6.x\nKernel ready."
                 color: root.textColor
                 font.family: root.terminalFont
-                font.pixelSize: Math.max(14, Math.min(18, root.width / 97))
-                lineHeight: 1.10
+                font.pixelSize: root.loginFontSize
+                lineHeight: 1.14
             }
 
-            TextField {
-                id: usernameField
+            Rectangle {
                 Layout.fillWidth: true
-                enabled: !root.loginPending
-                text: userModel.lastUser
-                placeholderText: "username"
-                placeholderTextColor: root.dimTextColor
-                color: root.textColor
-                cursorDelegate: terminalCursor
-                selectByMouse: true
-                font.family: root.terminalFont
-                font.pixelSize: Math.max(14, Math.min(18, root.width / 97))
-                background: Rectangle {
-                    color: "transparent"
-                    border.width: usernameField.activeFocus ? 1 : 0
-                    border.color: root.panelBorderColor
+                Layout.preferredHeight: 1
+                color: root.panelBorderColor
+                opacity: 0.72
+            }
+
+            // Align labels and input baselines so the prompt reads like a
+            // real getty while retaining a generous clickable text field.
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: root.compactLayout ? 8 : 12
+
+                Text {
+                    Layout.preferredWidth: root.compactLayout ? 112 : 138
+                    text: "archlinux login:"
+                    color: root.textColor
+                    font.family: root.terminalFont
+                    font.pixelSize: root.loginFontSize
                 }
-                onAccepted: passwordField.forceActiveFocus()
-                onTextEdited: root.loginError = ""
-            }
 
-            Text {
-                Layout.fillWidth: true
-                text: "Password:"
-                color: root.textColor
-                font.family: root.terminalFont
-                font.pixelSize: Math.max(14, Math.min(18, root.width / 97))
-            }
-
-            TextField {
-                id: passwordField
-                Layout.fillWidth: true
-                enabled: !root.loginPending
-                echoMode: TextInput.Password
-                passwordCharacter: "•"
-                placeholderText: "password"
-                placeholderTextColor: root.dimTextColor
-                color: root.textColor
-                cursorDelegate: terminalCursor
-                selectByMouse: true
-                font.family: root.terminalFont
-                font.pixelSize: Math.max(14, Math.min(18, root.width / 97))
-                background: Rectangle {
-                    color: "transparent"
-                    border.width: passwordField.activeFocus ? 1 : 0
-                    border.color: root.panelBorderColor
+                TextField {
+                    id: usernameField
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: Math.max(30, root.loginFontSize * 1.85)
+                    enabled: !root.loginPending
+                    text: userModel.lastUser
+                    placeholderText: "username"
+                    placeholderTextColor: root.dimTextColor
+                    color: root.textColor
+                    cursorDelegate: terminalCursor
+                    selectByMouse: true
+                    font.family: root.terminalFont
+                    font.pixelSize: root.loginFontSize
+                    KeyNavigation.tab: passwordField
+                    KeyNavigation.backtab: suspendButton
+                    background: Rectangle {
+                        color: usernameField.activeFocus ? "#120d2210" : "transparent"
+                        Rectangle {
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.bottom: parent.bottom
+                            height: usernameField.activeFocus ? 2 : 1
+                            color: usernameField.activeFocus
+                                   ? root.textColor : root.panelBorderColor
+                            Behavior on color {
+                                ColorAnimation { duration: 130 }
+                            }
+                        }
+                    }
+                    onAccepted: passwordField.forceActiveFocus()
+                    onTextEdited: root.loginError = ""
                 }
-                onAccepted: root.submitLogin()
-                onTextEdited: root.loginError = ""
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: root.compactLayout ? 8 : 12
+
+                Text {
+                    Layout.preferredWidth: root.compactLayout ? 112 : 138
+                    text: "Password:"
+                    color: root.textColor
+                    font.family: root.terminalFont
+                    font.pixelSize: root.loginFontSize
+                }
+
+                TextField {
+                    id: passwordField
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: Math.max(30, root.loginFontSize * 1.85)
+                    enabled: !root.loginPending
+                    echoMode: TextInput.Password
+                    passwordCharacter: "•"
+                    placeholderText: "password"
+                    placeholderTextColor: root.dimTextColor
+                    color: root.textColor
+                    cursorDelegate: terminalCursor
+                    selectByMouse: true
+                    font.family: root.terminalFont
+                    font.pixelSize: root.loginFontSize
+                    KeyNavigation.tab: sessionSelector
+                    KeyNavigation.backtab: usernameField
+                    background: Rectangle {
+                        color: passwordField.activeFocus ? "#120d2210" : "transparent"
+                        Rectangle {
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.bottom: parent.bottom
+                            height: passwordField.activeFocus ? 2 : 1
+                            color: passwordField.activeFocus
+                                   ? root.textColor : root.panelBorderColor
+                            Behavior on color {
+                                ColorAnimation { duration: 130 }
+                            }
+                        }
+                    }
+                    onAccepted: root.submitLogin()
+                    onTextEdited: root.loginError = ""
+                }
             }
 
             // SDDM provides the model of installed desktop sessions. Qt's
             // standard ComboBox displays each model entry's documented name.
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 12
+                spacing: root.compactLayout ? 8 : 12
 
                 Text {
-                    Layout.preferredWidth: 94
+                    Layout.preferredWidth: root.compactLayout ? 112 : 138
                     text: "Session:"
                     color: root.dimTextColor
                     font.family: root.terminalFont
-                    font.pixelSize: Math.max(12, Math.min(16, root.width / 112))
+                    font.pixelSize: root.detailFontSize
                 }
 
                 ComboBox {
                     id: sessionSelector
                     Layout.fillWidth: true
+                    Layout.preferredHeight: Math.max(30, root.detailFontSize * 2.05)
                     enabled: !root.loginPending
                     model: sessionModel
                     textRole: "name"
                     currentIndex: sessionModel.lastIndex >= 0 ? sessionModel.lastIndex : 0
+                    KeyNavigation.tab: loginButton
+                    KeyNavigation.backtab: passwordField
 
                     contentItem: Text {
                         leftPadding: 10
@@ -536,7 +603,7 @@ Rectangle {
                         elide: Text.ElideRight
                         verticalAlignment: Text.AlignVCenter
                         font.family: root.terminalFont
-                        font.pixelSize: Math.max(12, Math.min(16, root.width / 112))
+                        font.pixelSize: root.detailFontSize
                     }
 
                     indicator: Text {
@@ -545,7 +612,7 @@ Rectangle {
                         text: sessionSelector.popup.visible ? "▴" : "▾"
                         color: root.textColor
                         font.family: root.terminalFont
-                        font.pixelSize: Math.max(12, Math.min(16, root.width / 112))
+                        font.pixelSize: root.detailFontSize
                     }
 
                     background: Rectangle {
@@ -566,7 +633,7 @@ Rectangle {
                             elide: Text.ElideRight
                             verticalAlignment: Text.AlignVCenter
                             font.family: root.terminalFont
-                            font.pixelSize: Math.max(12, Math.min(16, root.width / 112))
+                            font.pixelSize: root.detailFontSize
                         }
                         background: Rectangle {
                             color: sessionDelegate.highlighted ? "#502b6e35" : "#d0050b06"
@@ -597,23 +664,25 @@ Rectangle {
 
             RowLayout {
                 Layout.fillWidth: true
-                Layout.topMargin: 4
-                spacing: 10
+                Layout.topMargin: root.compactLayout ? 1 : 4
+                spacing: root.compactLayout ? 8 : 10
 
                 Button {
                     id: loginButton
-                    Layout.preferredWidth: 126
-                    Layout.preferredHeight: 34
+                    Layout.preferredWidth: root.compactLayout ? 104 : 126
+                    Layout.preferredHeight: Math.max(32, root.detailFontSize * 2.25)
                     enabled: !root.loginPending
                     text: root.loginPending ? "AUTH..." : "LOGIN"
                     onClicked: root.submitLogin()
+                    KeyNavigation.tab: shutdownButton
+                    KeyNavigation.backtab: sessionSelector
                     contentItem: Text {
                         text: loginButton.text
                         color: "#001500"
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                         font.family: root.terminalFont
-                        font.pixelSize: Math.max(11, Math.min(15, root.width / 118))
+                        font.pixelSize: root.detailFontSize
                         font.bold: true
                     }
                     background: Rectangle {
@@ -629,7 +698,7 @@ Rectangle {
                     text: "Enter = login"
                     color: root.dimTextColor
                     font.family: root.terminalFont
-                    font.pixelSize: Math.max(10, Math.min(13, root.width / 134))
+                    font.pixelSize: root.detailFontSize
                 }
             }
 
@@ -640,7 +709,7 @@ Rectangle {
                 color: "#ff9090"
                 wrapMode: Text.Wrap
                 font.family: root.terminalFont
-                font.pixelSize: Math.max(11, Math.min(14, root.width / 120))
+                font.pixelSize: root.detailFontSize
             }
         }
     }
@@ -648,25 +717,34 @@ Rectangle {
     // ----- Bottom terminal command bar ------------------------------------
     // Buttons stay visible even when unavailable; SDDM's capability flags
     // disable unsupported actions instead of implying they would work.
-    Row {
+    Flow {
+        id: commandBar
         anchors.left: parent.left
+        anchors.right: parent.right
         anchors.bottom: parent.bottom
-        anchors.leftMargin: Math.max(30, root.width * 0.05)
-        anchors.bottomMargin: Math.max(20, root.height * 0.035)
-        spacing: 18
+        anchors.leftMargin: root.horizontalMargin
+        anchors.rightMargin: root.horizontalMargin
+        anchors.bottomMargin: root.verticalMargin
+        spacing: root.compactLayout ? 7 : 18
 
         Button {
             id: shutdownButton
+            width: root.compactLayout
+                   ? Math.max(68, Math.floor((commandBar.width - commandBar.spacing * 2) / 3))
+                   : 132
+            height: root.compactLayout ? 30 : 34
             enabled: sddm.canPowerOff && !root.loginPending
             text: "[F1] Shutdown"
             onClicked: sddm.powerOff()
+            KeyNavigation.tab: rebootButton
+            KeyNavigation.backtab: loginButton
             contentItem: Text {
                 text: shutdownButton.text
                 color: shutdownButton.enabled ? root.textColor : root.dimTextColor
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
                 font.family: root.terminalFont
-                font.pixelSize: Math.max(10, Math.min(14, root.width / 125))
+                font.pixelSize: root.detailFontSize
             }
             background: Rectangle {
                 color: shutdownButton.down ? "#382b6e35" : "transparent"
@@ -677,16 +755,22 @@ Rectangle {
 
         Button {
             id: rebootButton
+            width: root.compactLayout
+                   ? Math.max(68, Math.floor((commandBar.width - commandBar.spacing * 2) / 3))
+                   : 132
+            height: root.compactLayout ? 30 : 34
             enabled: sddm.canReboot && !root.loginPending
             text: "[F2] Reboot"
             onClicked: sddm.reboot()
+            KeyNavigation.tab: suspendButton
+            KeyNavigation.backtab: shutdownButton
             contentItem: Text {
                 text: rebootButton.text
                 color: rebootButton.enabled ? root.textColor : root.dimTextColor
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
                 font.family: root.terminalFont
-                font.pixelSize: Math.max(10, Math.min(14, root.width / 125))
+                font.pixelSize: root.detailFontSize
             }
             background: Rectangle {
                 color: rebootButton.down ? "#382b6e35" : "transparent"
@@ -697,16 +781,22 @@ Rectangle {
 
         Button {
             id: suspendButton
+            width: root.compactLayout
+                   ? Math.max(68, Math.floor((commandBar.width - commandBar.spacing * 2) / 3))
+                   : 132
+            height: root.compactLayout ? 30 : 34
             enabled: sddm.canSuspend && !root.loginPending
             text: "[F3] Sleep"
             onClicked: sddm.suspend()
+            KeyNavigation.tab: usernameField
+            KeyNavigation.backtab: rebootButton
             contentItem: Text {
                 text: suspendButton.text
                 color: suspendButton.enabled ? root.textColor : root.dimTextColor
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
                 font.family: root.terminalFont
-                font.pixelSize: Math.max(10, Math.min(14, root.width / 125))
+                font.pixelSize: root.detailFontSize
             }
             background: Rectangle {
                 color: suspendButton.down ? "#382b6e35" : "transparent"
