@@ -29,10 +29,6 @@ Rectangle {
     property int animationDuration: Math.max(1, config.intValue("AnimationDuration"))
     property real backgroundOpacity: Math.max(0.0, Math.min(1.0,
                                                               config.realValue("BackgroundOpacity")))
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
->>>>>>> c7787bd2a832d79368b213172dd33c932b8eaa01
     // Keep a shared grid across the header, boot console, login panel, and
     // command bar. The compact branch is used by tablets and short displays.
     property int horizontalMargin: Math.round(Math.max(22, Math.min(78, width * 0.055)))
@@ -46,12 +42,6 @@ Rectangle {
     property int logoReservedHeight: Math.ceil(Math.max(14, Math.min(21, width / 85)) * 6.6)
     property int panelWidth: Math.min(720, Math.max(0, width - horizontalMargin * 2))
     property int footerClearance: commandBar.height + verticalMargin + 18
-<<<<<<< HEAD
-=======
-=======
-    property int panelWidth: Math.min(710, Math.max(440, width * 0.52))
->>>>>>> 5e2b928c1d6fb93a111821cbf04dd4733197c1ce
->>>>>>> c7787bd2a832d79368b213172dd33c932b8eaa01
 
     // ----- Boot state ------------------------------------------------------
     property bool loginReady: false
@@ -71,7 +61,7 @@ Rectangle {
         " /_-''    ''-_\\"
     ]
     property var bootMessages: [
-        "Initializing Arch Linux...",
+        "Initializing " + distributionName + "...",
         "Loading kernel...",
         "Mounting root filesystem...",
         "Starting systemd...",
@@ -94,6 +84,24 @@ Rectangle {
 
     property string terminalFont: jetbrainsMono.status === FontLoader.Ready
                                   ? jetbrainsMono.name : "monospace"
+
+    // SystemInfo.qml is atomically generated under /run before SDDM starts by
+    // helpers/arch-terminal-system-info. Loader is native QML file loading,
+    // not shell execution or XMLHttpRequest, so the greeter stays sandboxed.
+    Loader {
+        id: systemInfoLoader
+        source: "file:///run/sddm/arch-terminal/SystemInfo.qml"
+        asynchronous: false
+    }
+
+    // Fall back to neutral text only when the v1.2 helper has not yet been
+    // installed. A normal installation always supplies both runtime values.
+    property var systemInfo: systemInfoLoader.item
+    property string distributionName: systemInfo && systemInfo["distributionName"]
+                                      ? systemInfo["distributionName"] : "Linux"
+    property string kernelRelease: systemInfo && systemInfo["kernelRelease"]
+                                   ? systemInfo["kernelRelease"] : "unknown"
+    property string runningKernelLabel: "Linux " + kernelRelease
 
     // ----- SDDM actions ----------------------------------------------------
     // Authentication is delegated to SDDM/PAM. The theme never handles or
@@ -274,7 +282,7 @@ Rectangle {
         anchors.top: parent.top
         anchors.leftMargin: root.horizontalMargin
         anchors.topMargin: root.verticalMargin
-        text: "Arch Linux 6.x  (tty1)   " + sddm.hostname
+        text: root.distributionName + "  (tty1)   " + sddm.hostname
         color: root.dimTextColor
         font.family: root.terminalFont
         font.pixelSize: Math.max(12, Math.min(17, root.width / 110))
@@ -333,7 +341,7 @@ Rectangle {
             spacing: root.compactLayout ? 10 : 14
 
             Text {
-                text: "BOOTING ARCH LINUX"
+                text: "BOOTING " + root.distributionName.toUpperCase()
                 color: root.textColor
                 font.family: root.terminalFont
                 font.pixelSize: Math.max(15, Math.min(22, root.width / 70))
@@ -341,7 +349,7 @@ Rectangle {
             }
 
             Text {
-                text: "[    0.000000] Linux version 6.x-arch1-1 (x86_64)"
+                text: "[    0.000000] " + root.runningKernelLabel
                 color: root.dimTextColor
                 font.family: root.terminalFont
                 font.pixelSize: Math.max(11, Math.min(15, root.width / 110))
@@ -471,7 +479,8 @@ Rectangle {
 
             Text {
                 Layout.fillWidth: true
-                text: "Arch Linux 6.x\nKernel ready."
+                text: root.distributionName + "\n" + root.runningKernelLabel
+                      + "\nKernel ready."
                 color: root.textColor
                 font.family: root.terminalFont
                 font.pixelSize: root.loginFontSize

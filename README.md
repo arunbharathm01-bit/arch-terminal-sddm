@@ -1,4 +1,4 @@
-# Arch Terminal
+# Arch Terminal v1.2.0
 
 Arch Terminal is a production-ready terminal-style SDDM theme for Arch Linux,
 Plasma 6, Qt 6, and SDDM 0.21+. It begins with a fictional, character-by-
@@ -9,7 +9,7 @@ prompt over a darkened custom wallpaper.
 
 - Arch Linux, Plasma 6, Qt 6, and SDDM 0.21 or newer.
 - Imports only standard Qt 6 modules: `QtQuick`, `QtQuick.Controls`, and
-  `QtQuick.Layouts`.
+  `QtQuick.Layouts`; the generated runtime data object uses `QtQml`.
 - Uses no shaders, `QtGraphicalEffects`, `MultiEffect`, layer rendering, or
   GPU-only effects. Wallpaper contrast uses a plain opacity overlay; terminal
   motion uses basic Qt Quick opacity and position animations.
@@ -23,7 +23,12 @@ arch-terminal/
 ├── Main.qml                         # UI, typewriter boot, and SDDM actions
 ├── metadata.desktop                 # SDDM 2.0 / Qt 6 manifest
 ├── theme.conf                       # wallpaper, palette, and timing controls
+├── install.sh                        # installs the theme and v1.2 runtime helper
 ├── README.md                        # install, preview, and configuration help
+├── helpers/
+│   └── arch-terminal-system-info     # safe system-info generator
+├── systemd/sddm.service.d/
+│   └── arch-terminal-system-info.conf # runs the helper before SDDM
 └── assets/
     ├── wallpaper.svg                # replaceable default wallpaper
     ├── arch-terminal.svg            # package/preview mark
@@ -34,12 +39,19 @@ arch-terminal/
 
 ## Installation
 
-Copy the whole directory to SDDM's system theme directory:
+Use the installer rather than copying the theme directory by itself. Version
+1.2.0 includes a small systemd pre-greeter helper that supplies the actual
+distribution and running kernel information to QML.
 
 ```bash
-sudo install -d -m 755 /usr/share/sddm/themes/arch-terminal
-sudo cp -a ./arch-terminal/. /usr/share/sddm/themes/arch-terminal/
+cd /path/to/arch-terminal
+sudo ./install.sh
 ```
+
+The installer copies the theme to `/usr/share/sddm/themes/arch-terminal`,
+installs the helper at `/usr/lib/sddm/arch-terminal-system-info`, adds an SDDM
+systemd drop-in, and generates the first runtime data file. It does not restart
+SDDM or change your selected theme.
 
 Select the theme by creating `/etc/sddm.conf.d/10-arch-terminal.conf`:
 
@@ -57,6 +69,7 @@ theme, and restart SDDM.
 Run the greeter from an existing graphical session before activating it:
 
 ```bash
+sudo ./helpers/arch-terminal-system-info
 sddm-greeter --test-mode --theme "$(pwd)/arch-terminal"
 ```
 
@@ -87,6 +100,23 @@ theme is more reliable because the `sddm` user must be able to read it.
 It also provides `PanelColor`, `PanelBorderColor`, `DimTextColor`, and
 `BootSettleDelay`. For upgrade-safe local changes, create
 `theme.conf.user` alongside `theme.conf`; SDDM merges it at runtime.
+
+## Runtime system information
+
+Before every SDDM start, the bundled helper reads `PRETTY_NAME` from
+`/etc/os-release` (falling back to `NAME`) and calls `/usr/bin/uname -r` for
+the running kernel. It writes the resulting, safely quoted QML data object
+atomically to `/run/sddm/arch-terminal/SystemInfo.qml`; the theme only loads
+that local object. QML never executes a shell command and does not require
+local-file XHR permissions.
+
+This produces boot and login text such as:
+
+```text
+Arch Linux
+Linux 7.1.10-arch1-1
+Kernel ready.
+```
 
 ## SDDM integration
 
