@@ -20,18 +20,18 @@ prompt over a darkened custom wallpaper.
 
 ```
 arch-terminal/
-├── Main.qml                         # UI, typewriter boot, and SDDM actions
-├── metadata.desktop                 # SDDM 2.0 / Qt 6 manifest
-├── theme.conf                       # wallpaper, palette, and timing controls
-├── install.sh                        # installs the theme and v1.2 runtime helper
-├── README.md                        # install, preview, and configuration help
+├── Main.qml                         
+├── metadata.desktop                 
+├── theme.conf                       
+├── install.sh                       
+├── README.md                        
 ├── helpers/
-│   └── arch-terminal-system-info     # safe system-info generator
+│   └── arch-terminal-system-info     
 ├── systemd/sddm.service.d/
-│   └── arch-terminal-system-info.conf # runs the helper before SDDM
+│   └── arch-terminal-system-info.conf 
 └── assets/
-    ├── wallpaper.svg                # replaceable default wallpaper
-    ├── arch-terminal.svg            # package/preview mark
+    ├── wallpaper.svg                
+    ├── arch-terminal.svg           
     └── fonts/
         ├── JetBrainsMono-Regular.ttf
         └── OFL.txt
